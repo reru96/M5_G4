@@ -26,6 +26,8 @@ public class EnemyPath2 : MonoBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
         InitializeVisionCone();
+        if (targetPlayer == null && GameObject.FindWithTag("Player"))
+            targetPlayer = GameObject.FindWithTag("Player").transform;
         GoToNextWaypoint();
     }
 
@@ -67,26 +69,16 @@ public class EnemyPath2 : MonoBehaviour
 
     void CheckPlayerDetection()
     {
-        Collider[] hits = Physics.OverlapSphere(transform.position, detectionRadius, playerLayer);
-        bool playerDetected = false;
+        if (targetPlayer == null) return;
 
-        foreach (Collider hit in hits)
-        {
-            if (IsTargetInVisionCone(hit.transform))
-            {
-                targetPlayer = hit.transform;
-                playerDetected = true;
-                break;
-            }
-        }
-
-        if (playerDetected)
+        if (IsTargetInVisionCone(targetPlayer))
         {
             if (currentState == State.Patrolling && waitCoroutine != null)
             {
                 StopCoroutine(waitCoroutine);
                 waitCoroutine = null;
             }
+
             currentState = State.Chasing;
         }
         else if (currentState == State.Chasing)
@@ -99,14 +91,19 @@ public class EnemyPath2 : MonoBehaviour
     bool IsTargetInVisionCone(Transform target)
     {
         Vector3 dirToTarget = (target.position - transform.position).normalized;
-
-  
         float angle = Vector3.Angle(transform.forward, dirToTarget);
-        if (angle > viewAngle / 2) return false;
 
+        if (angle > viewAngle / 2f) return false;
 
         float distance = Vector3.Distance(transform.position, target.position);
         if (distance > detectionRadius) return false;
+
+       
+        Ray ray = new Ray(transform.position + Vector3.up * 0.5f, dirToTarget);
+        if (Physics.Raycast(ray, out RaycastHit hit, detectionRadius))
+        {
+            if (hit.transform != target) return false;
+        }
 
         return true;
     }
